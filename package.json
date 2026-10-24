@@ -1,0 +1,54 @@
+{
+	"name": "@sigrun/ext-oauth",
+	"version": "0.1.0",
+	"description": "OIDC and OAuth 2 login providers for sigrun",
+	"type": "module",
+	"engines": {
+		"node": ">=22.19.0"
+	},
+	"main": "dist/index.js",
+	"types": "dist/index.d.ts",
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"default": "./dist/index.js"
+		}
+	},
+	"files": [
+		"dist",
+		"CHANGELOG.md"
+	],
+	"scripts": {
+		"test": "node scripts/check-manifest.mjs --expect-name @sigrun/ext-oauth && vitest run",
+		"typecheck": "tsc --noEmit",
+		"build": "tsc -p tsconfig.build.json",
+		"prepublishOnly": "npm run build"
+	},
+	"dependencies": {
+		"oauth4webapi": "3.8.8"
+	},
+	"peerDependencies": {
+		"@sigrun/sigrun": "*"
+	},
+	"devDependencies": {
+		"@types/node": "^26.6.4",
+		"jose": "^6.2.13",
+		"tsx": "^4.23.15",
+		"typescript": "^7.0.2",
+		"vite": "^8.3.5",
+		"vitest": "^5.0.3"
+	},
+	"license": "MIT",
+	"repository": {
+		"type": "github",
+		"url": "git+https://github.com/sigrun-ai/sigrun-ext-oauth.git"
+	},
+	"bugs": {
+		"url": "https://github.com/sigrun-ai/sigrun-ext-oauth/issues"
+	},
+	"homepage": "https://github.com/sigrun-ai/sigrun-ext-oauth#readme",
+	"publishConfig": {
+		"access": "public",
+		"provenance": true
+	}
+}
