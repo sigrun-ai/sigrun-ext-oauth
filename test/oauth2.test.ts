@@ -1,7 +1,7 @@
 import { createServer, type Server } from "node:http";
 import { once } from "node:events";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import { createOauth2Provider } from "../src/oauth2.js";
+import { createOauth2Provider, mapUserinfo } from "../src/oauth2.js";
 import { githubPreset, discordPreset } from "../src/presets.js";
 import type { LoginFlow } from "@sigrun/sigrun/extension";
 
@@ -77,6 +77,45 @@ describe("presets", () => {
 		expect(body.get("client_id")).toBe("gh-client");
 		expect(body.get("client_secret")).toBe("gh-secret");
 		expect(body.get("code_verifier")).toBe(login.data.codeVerifier);
+	});
+
+	it.each([
+		{ verified: false, label: "false" },
+		{ verified: undefined, label: "absent" },
+		{ verified: "true", label: "non-boolean truthy" },
+	])("does not trust Discord verification when $label", ({ verified }) => {
+		const config = { ...discordPreset(), id: "discord", label: "Discord", kind: "oauth2" as const, clientId: "client" };
+		if (verified === "true") {
+			expect(() => mapUserinfo(config, { id: "user", verified })).toThrow("not boolean");
+		} else {
+			const result = mapUserinfo(config, { id: "user", ...(verified === undefined ? {} : { verified }) });
+			expect(result.profile.emailVerified).not.toBe(true);
+		}
+	});
+
+	it("marks GitHub email verified only for a primary verified entry", async () => {
+		const responses = [
+			{ primary: true, verified: false, email: "alice@example.invalid" },
+			{ primary: true, verified: "true", email: "alice@example.invalid" },
+			{ primary: false, verified: true, email: "alice@example.invalid" },
+			{ primary: true, verified: true, email: "alice@example.invalid" },
+		];
+		for (const [index, email] of responses.entries()) {
+			const fetchMock = vi.fn<typeof fetch>().mockImplementation(async (input) => {
+				const url = String(input);
+				const body = url.endsWith("/user/emails")
+					? [email]
+					: url.endsWith("/user")
+						? { id: 42, login: "alice" }
+						: { access_token: "access-token", token_type: "Bearer" };
+				return new Response(JSON.stringify(body), { status: 200, headers: { "content-type": "application/json" } });
+			});
+			const provider = createOauth2Provider({ ...githubPreset(), id: "gh", label: "GitHub", kind: "oauth2", clientId: "client" }, async () => "secret", fetchMock);
+			const login = flow();
+			await provider.begin(login, context);
+			const result = await provider.complete(login, { query: { code: "code", state: "state" } }, context);
+			expect(result.profile.emailVerified).toBe(index === responses.length - 1);
+		}
 	});
 
 	it("pins Discord URLs", () => {

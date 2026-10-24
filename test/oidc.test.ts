@@ -45,6 +45,30 @@ describe("OIDC", () => {
 		});
 	});
 
+	it("rejects an ID token whose issuer differs from discovery", async () => {
+		const value = await flow();
+		issuer.use({ issuer: "https://attacker.example.invalid" });
+		await expect(complete(value)).rejects.toThrow();
+	});
+
+	it("does not mark emailVerified true for a false claim", async () => {
+		issuer.use({ emailVerified: false });
+		const result = await complete(await flow());
+		expect(result.profile.emailVerified).not.toBe(true);
+	});
+
+	it("does not mark emailVerified true when the claim is absent", async () => {
+		issuer.use({ omitEmailVerified: true });
+		const result = await complete(await flow());
+		expect(result.profile.emailVerified).not.toBe(true);
+	});
+
+	it("rejects a non-boolean truthy email_verified claim", async () => {
+		const value = await flow();
+		issuer.use({ emailVerified: "true" });
+		await expect(complete(value)).rejects.toThrow("email_verified is not boolean");
+	});
+
 	it("rejects the wrong nonce", async () => {
 		const value = await flow();
 		issuer.use({ nonce: "attacker-nonce" });

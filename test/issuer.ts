@@ -3,10 +3,13 @@ import { once } from "node:events";
 import { exportJWK, generateKeyPair, SignJWT, type CryptoKey } from "jose";
 
 export interface IssuerOverrides {
+	issuer?: string;
 	audience?: string;
 	nonce?: string;
 	expiresInSeconds?: number;
 	groups?: unknown;
+	emailVerified?: unknown;
+	omitEmailVerified?: boolean;
 	wrongSignature?: boolean;
 }
 
@@ -83,11 +86,13 @@ export class TestIssuer {
 				preferred_username: "alice",
 				name: "Alice Example",
 				email: "alice@example.invalid",
-				email_verified: true,
+				...(this.overrides.omitEmailVerified === true
+					? {}
+					: { email_verified: this.overrides.emailVerified ?? true }),
 				groups: this.overrides.groups ?? ["staff", "engineering"],
 			})
 				.setProtectedHeader({ alg: "ES256", kid: "test-key", typ: "JWT" })
-				.setIssuer(this.issuer)
+				.setIssuer(this.overrides.issuer ?? this.issuer)
 				.setSubject("subject-123")
 				.setAudience(this.overrides.audience ?? "sigrun-client")
 				.setIssuedAt(now)

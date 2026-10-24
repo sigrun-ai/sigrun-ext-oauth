@@ -88,7 +88,9 @@ export async function completeOauth2(config: Oauth2Config, flow: LoginFlow, call
 	const userinfoResponse = await fetchImpl(config.userinfoUrl, { headers: { authorization: `Bearer ${accessToken}`, accept: "application/json" }, signal: ctx.abortSignal });
 	if (!userinfoResponse.ok) throw new Error(`OAuth 2 userinfo request failed (${userinfoResponse.status})`);
 	const result = mapUserinfo(config, await userinfoResponse.json());
-	if (config.preset === "github") return { ...result, profile: { ...result.profile, ...(await githubEmail(accessToken, fetchImpl, ctx.abortSignal)) } };
+	if (config.preset === "github" || config.userinfoUrl === "https://api.github.com/user") {
+		return { ...result, profile: { ...result.profile, ...(await githubEmail(accessToken, fetchImpl, ctx.abortSignal)) } };
+	}
 	return result;
 }
 

@@ -96,8 +96,9 @@ export async function completeOauth2(config, flow, callback, ctx, secret, fetchI
     if (!userinfoResponse.ok)
         throw new Error(`OAuth 2 userinfo request failed (${userinfoResponse.status})`);
     const result = mapUserinfo(config, await userinfoResponse.json());
-    if (config.preset === "github")
+    if (config.preset === "github" || config.userinfoUrl === "https://api.github.com/user") {
         return { ...result, profile: { ...result.profile, ...(await githubEmail(accessToken, fetchImpl, ctx.abortSignal)) } };
+    }
     return result;
 }
 export function createOauth2Provider(config, readSecret, fetchImpl = fetch) {

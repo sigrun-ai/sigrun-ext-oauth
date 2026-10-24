@@ -72,6 +72,23 @@ describe("configuration", () => {
 		expect(warnings[0]).toContain("broken");
 	});
 
+	it("skips an explicit OAuth 2 provider missing clientId without suppressing others", () => {
+		const warnings: string[] = [];
+		const result = parseProviders({ providers: [
+			{
+				id: "explicit-broken", label: "Broken explicit", kind: "oauth2",
+				authorizeUrl: "https://id.example.invalid/authorize",
+				tokenUrl: "https://id.example.invalid/token",
+				userinfoUrl: "https://id.example.invalid/me",
+				fields: { subject: "id" },
+			},
+			oidc,
+		] }, (message) => warnings.push(message));
+		expect(result.map((entry) => entry.id)).toEqual(["company"]);
+		expect(warnings).toHaveLength(1);
+		expect(warnings[0]).toContain("explicit-broken");
+	});
+
 	it("reads a provider secret only through its scoped extension key", async () => {
 		const secretGet = vi.fn().mockResolvedValue(undefined);
 		const result = await createOAuth(hostWith({ providers: [oidc] }, secretGet));
