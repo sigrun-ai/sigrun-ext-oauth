@@ -72,6 +72,19 @@ describe("configuration", () => {
 		expect(warnings[0]).toContain("broken");
 	});
 
+	it("skips duplicate ids without suppressing the first or other providers", () => {
+		const warnings: string[] = [];
+		const result = parseProviders({ providers: [
+			oidc,
+			{ ...oidc, label: "Duplicate" },
+			{ id: "other", label: "Other", kind: "oidc", issuer: "https://other.example.invalid", clientId: "other-client" },
+		] }, (message) => warnings.push(message));
+		expect(result.map((entry) => [entry.id, entry.label])).toEqual([["company", "Company"], ["other", "Other"]]);
+		expect(warnings).toHaveLength(1);
+		expect(warnings[0]).toContain("company");
+		expect(warnings[0]).toContain("duplicate");
+	});
+
 	it("skips an explicit OAuth 2 provider missing clientId without suppressing others", () => {
 		const warnings: string[] = [];
 		const result = parseProviders({ providers: [

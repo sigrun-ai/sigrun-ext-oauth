@@ -1,5 +1,5 @@
 {
-	"name": "@sigrun/ext-oauth",
+	"name": "@sigrun/oauth",
 	"version": "0.1.0",
 	"description": "OIDC and OAuth 2 login providers for sigrun",
 	"type": "module",
@@ -19,7 +19,7 @@
 		"CHANGELOG.md"
 	],
 	"scripts": {
-		"test": "node scripts/check-manifest.mjs --expect-name @sigrun/ext-oauth && vitest run",
+		"test": "node scripts/check-manifest.mjs --expect-name @sigrun/oauth && vitest run",
 		"typecheck": "tsc --noEmit",
 		"build": "tsc -p tsconfig.build.json",
 		"prepublishOnly": "npm run build"

@@ -118,10 +118,17 @@ export function parseProviders(settings, warn = console.warn) {
         return [];
     }
     const providers = [];
+    const ids = new Set();
     for (const value of settings.providers) {
         const name = object(value) && typeof value.id === "string" ? value.id : "unnamed";
         try {
-            providers.push(parseProvider(value));
+            const provider = parseProvider(value);
+            if (ids.has(provider.id)) {
+                warn(`oauth: skipping duplicate provider "${provider.id}"`);
+                continue;
+            }
+            ids.add(provider.id);
+            providers.push(provider);
         }
         catch (error) {
             warn(`oauth: skipping malformed provider "${name}": ${error instanceof Error ? error.message : String(error)}`);

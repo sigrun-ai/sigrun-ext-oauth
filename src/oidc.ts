@@ -78,7 +78,7 @@ export function oidcResult(config: OidcConfig, claims: oauth.IDToken): LoginResu
 		throw new Error("ID token claim email_verified is not boolean");
 	}
 	return {
-		subject: claims.sub,
+		subject: stringClaim(claims, "sub")!,
 		profile: {
 			...(username === undefined ? {} : { username }),
 			...(name === undefined ? {} : { name }),

@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { createOidcProvider } from "../src/oidc.js";
+import { createOidcProvider, oidcResult } from "../src/oidc.js";
 import { TestIssuer } from "./issuer.js";
 import type { LoginFlow } from "@sigrun/sigrun/extension";
 
@@ -43,6 +43,14 @@ describe("OIDC", () => {
 			profile: { username: "alice", name: "Alice Example", email: "alice@example.invalid", emailVerified: true },
 			groups: ["staff", "engineering"],
 		});
+	});
+
+	it("rejects a non-string subject claim as malformed identity data", () => {
+		expect(() => oidcResult(config(), {
+			iss: issuer.issuer,
+			aud: "sigrun-client",
+			sub: 42,
+		} as unknown as Parameters<typeof oidcResult>[1])).toThrow("ID token claim sub is not a string");
 	});
 
 	it("rejects an ID token whose issuer differs from discovery", async () => {

@@ -1,6 +1,6 @@
 Sign in to sigrun with an OIDC or OAuth 2 provider. This is for logging in; MCP account connections live in the MCP extension.
 
-# @sigrun/ext-oauth
+# @sigrun/oauth
 
 The `oauth` extension contributes `loginProviders` to sigrun's login seam. Core qualifies them as `login:oauth:<id>`. It supports OIDC discovery with authorization code, PKCE S256, nonce, and full ID-token validation; GitHub and Discord presets; and explicit OAuth 2 endpoints with configurable userinfo field paths.
 
