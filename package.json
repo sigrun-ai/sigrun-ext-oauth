@@ -19,7 +19,7 @@
 		"CHANGELOG.md"
 	],
 	"scripts": {
-		"test": "node scripts/check-manifest.mjs --expect-name @sigrun/oauth && vitest run",
+		"test": "node scripts/check-manifest.mjs --expect-name @sigrun/oauth && node scripts/check-standalone.mjs && vitest run",
 		"typecheck": "tsc --noEmit",
 		"build": "tsc -p tsconfig.build.json",
 		"prepublishOnly": "npm run build"
@@ -27,10 +27,8 @@
 	"dependencies": {
 		"oauth4webapi": "3.8.8"
 	},
-	"peerDependencies": {
-		"@sigrun/sigrun": "*"
-	},
 	"devDependencies": {
+		"@sigrun/sigrun": "file:../sigrun",
 		"@types/node": "^26.6.4",
 		"jose": "^6.2.13",
 		"tsx": "^4.23.15",

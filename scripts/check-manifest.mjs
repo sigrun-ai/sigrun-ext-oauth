@@ -61,17 +61,18 @@ check(
 check(typeof manifest.bugs?.url === "string", "package.json: bugs.url absent");
 check(typeof manifest.homepage === "string", "package.json: homepage absent");
 
-/** This extension imports core's TYPES-ONLY extension contract. Unlike
- * codemode's local exact-pin gate, host modules here MUST use "*": the
- * sigrun host supplies them and a published extension cannot pin its host.
- * Core's types-only contract is resolved through tsconfig paths during
- * development, so it needs no devDependency or node_modules entry. */
-const HOST_MODULES = new Set(["@sigrun/sigrun"]);
+/** This extension imports core's contract TYPES-ONLY, so it must install
+ * standalone with only its runtime dependencies — @sigrun/sigrun is a
+ * devDependency (file: in development, published version after release),
+ * never a peer (see scripts/check-standalone.mjs). Peer entries are only
+ * allowed for host modules the host links in at runtime, and this package
+ * has none. */
+const HOST_MODULES = new Set();
 const peers = manifest.peerDependencies ?? {};
 for (const [module, spec] of Object.entries(peers)) {
 	check(
 		HOST_MODULES.has(module),
-		`package.json: peerDependencies carries non-host module "${module}"`,
+		`package.json: peerDependencies carries non-host module "${module}" — the sigrun host contract is type-only; move it to devDependencies`,
 	);
 	check(spec === "*", `package.json: peerDependencies["${module}"] must be "*" (got ${JSON.stringify(spec)})`);
 }
