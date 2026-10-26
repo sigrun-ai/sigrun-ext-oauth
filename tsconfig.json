@@ -9,10 +9,7 @@
 		"forceConsistentCasingInFileNames": true,
 		"noEmit": true,
 		"outDir": "dist",
-		"types": ["node"],
-		"paths": {
-			"@sigrun/sigrun/extension": ["../sigrun/.worktrees/multi-user-m3b/dist/extension.d.ts"]
-		}
+		"types": ["node"]
 	},
 	"include": ["src", "test"],
 	"exclude": ["node_modules", "dist"]
