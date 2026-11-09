@@ -10,6 +10,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Changed
 
+- Login providers are declared as a JSON Schema (entries array with a
+  `kind` variant; absent `kind` still means `oidc`) via
+  `host.settings.declare` and edited as generated forms on the extension's
+  settings page. Client secrets move from the legacy `<id>.clientSecret`
+  store keys to `providers/<id>/clientSecret` (migrated automatically at
+  factory time). Raises the `@sigrun/sigrun` peer floor to the
+  settings-rework core.
 - peer pi-durable/pi-ai/chord ~1.5.0 (requires sigrun 0.11.0).
 
 ## [0.1.1] - 2026-10-27
