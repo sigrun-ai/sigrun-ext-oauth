@@ -5,7 +5,7 @@ import type {
 	LoginProviderContribution,
 	LoginResult,
 } from "@sigrun/sigrun/extension";
-import type { OidcConfig } from "./config.js";
+import type { OidcConfig } from "./providers.js";
 
 export type Fetch = typeof fetch;
 export type SecretReader = () => Promise<string | undefined>;

@@ -1,6 +1,6 @@
 import * as oauth from "oauth4webapi";
 import type { HandlerContext, LoginFlow, LoginProviderContribution, LoginResult } from "@sigrun/sigrun/extension";
-import type { Oauth2Config } from "./config.js";
+import type { Oauth2Config } from "./providers.js";
 import type { Fetch, SecretReader } from "./oidc.js";
 
 function field(value: unknown, path: string): unknown {

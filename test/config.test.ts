@@ -1,7 +1,16 @@
+/**
+ * The provider-resolution tests (formerly the parser tests of
+ * src/config.ts): the schema checked read supplies the defaults, so
+ * these drive `resolveProviders` through core's `checkStoredSettings`
+ * exactly as the factory's `declared.get()` does.
+ */
 import { describe, expect, it, vi } from "vitest";
-import { parseProviders } from "../src/config.js";
+import { OAUTH_SETTINGS_SCHEMA } from "../src/settings-schema.js";
+import { resolveProviders } from "../src/providers.js";
 import createOAuth from "../src/index.js";
 import type { SigrunHost } from "@sigrun/sigrun/extension";
+// @ts-expect-error — core internal, resolved through the file: dev link.
+import { checkStoredSettings } from "../node_modules/@sigrun/sigrun/dist/settings/schema/defaults.js";
 
 const oidc = {
 	id: "company",
@@ -11,11 +20,30 @@ const oidc = {
 	clientId: "sigrun-client",
 };
 
+function checked(settings: Record<string, unknown>): Record<string, unknown> {
+	return checkStoredSettings(OAUTH_SETTINGS_SCHEMA, settings).value;
+}
+
+/** The repairs core's checked read reports (the schema's warn-and-continue). */
+function repairsOf(settings: Record<string, unknown>): readonly { path: string; action: string }[] {
+	return checkStoredSettings(OAUTH_SETTINGS_SCHEMA, settings).repairs;
+}
+
+function declaredHandle(settings: Record<string, unknown>) {
+	return {
+		get: async () => checked(settings),
+		user: () => {
+			throw new Error("oauth declares no userSchema");
+		},
+	};
+}
+
 function hostWith(settings: Record<string, unknown>, secretGet = vi.fn()): SigrunHost {
 	return {
+		settings: { declare: () => declaredHandle(settings) },
 		stores: {
 			settings: { get: async () => settings, set: vi.fn() },
-			secrets: { get: secretGet, set: vi.fn() },
+			secrets: { get: secretGet, set: vi.fn(), delete: vi.fn() },
 			paths: { data: "", cache: "", state: "" },
 		},
 	} as unknown as SigrunHost;
@@ -23,7 +51,7 @@ function hostWith(settings: Record<string, unknown>, secretGet = vi.fn()): Sigru
 
 describe("configuration", () => {
 	it("parses an OIDC provider and applies defaults", () => {
-		expect(parseProviders({ providers: [oidc] })).toEqual([
+		expect(resolveProviders(checked({ providers: [oidc] }))).toEqual([
 			expect.objectContaining({
 				id: "company",
 				kind: "oidc",
@@ -35,14 +63,14 @@ describe("configuration", () => {
 	});
 
 	it("parses both OAuth 2 presets", () => {
-		expect(parseProviders({ providers: [
+		expect(resolveProviders(checked({ providers: [
 			{ id: "gh", label: "GitHub", kind: "oauth2", preset: "github", clientId: "gh-client" },
 			{ id: "discord", label: "Discord", kind: "oauth2", preset: "discord", clientId: "discord-client" },
-		] })).toHaveLength(2);
+		] }))).toHaveLength(2);
 	});
 
 	it("parses explicit endpoints, fields, and provisioning policy", () => {
-		const [entry] = parseProviders({ providers: [{
+		const [entry] = resolveProviders(checked({ providers: [{
 			id: "custom",
 			label: "Custom",
 			kind: "oauth2",
@@ -54,40 +82,40 @@ describe("configuration", () => {
 			autoProvision: true,
 			allowedGroups: ["staff"],
 			allowedDomains: ["example.invalid"],
-		}] });
+		}] }));
 		expect(entry).toMatchObject({
 			scopes: "openid profile email",
 			policy: { autoProvision: true, allowedGroups: ["staff"], allowedDomains: ["example.invalid"] },
 		});
 	});
 
-	it("skips only the malformed entry and warns once naming it", () => {
-		const warnings: string[] = [];
-		const result = parseProviders({ providers: [
+	it("drops only the malformed entry, named in the checked read's repairs", () => {
+		const stored = { providers: [
 			{ id: "broken", label: "Broken", kind: "oauth2", preset: "github" },
 			oidc,
-		] }, (message) => warnings.push(message));
+		] };
+		const result = resolveProviders(checked(stored));
 		expect(result.map((entry) => entry.id)).toEqual(["company"]);
-		expect(warnings).toHaveLength(1);
-		expect(warnings[0]).toContain("broken");
+		// The old parser's warn-and-skip is now the schema's drop, reported
+		// through the checked read's repair list (core logs and notices it).
+		expect(repairsOf(stored).some((repair) => repair.path.startsWith("/providers/0"))).toBe(true);
 	});
 
 	it("skips duplicate ids without suppressing the first or other providers", () => {
 		const warnings: string[] = [];
-		const result = parseProviders({ providers: [
+		const result = resolveProviders(checked({ providers: [
 			oidc,
 			{ ...oidc, label: "Duplicate" },
 			{ id: "other", label: "Other", kind: "oidc", issuer: "https://other.example.invalid", clientId: "other-client" },
-		] }, (message) => warnings.push(message));
+		] }), (message) => warnings.push(message));
 		expect(result.map((entry) => [entry.id, entry.label])).toEqual([["company", "Company"], ["other", "Other"]]);
 		expect(warnings).toHaveLength(1);
 		expect(warnings[0]).toContain("company");
 		expect(warnings[0]).toContain("duplicate");
 	});
 
-	it("skips an explicit OAuth 2 provider missing clientId without suppressing others", () => {
-		const warnings: string[] = [];
-		const result = parseProviders({ providers: [
+	it("drops an explicit OAuth 2 provider missing clientId without suppressing others", () => {
+		const stored = { providers: [
 			{
 				id: "explicit-broken", label: "Broken explicit", kind: "oauth2",
 				authorizeUrl: "https://id.example.invalid/authorize",
@@ -96,10 +124,10 @@ describe("configuration", () => {
 				fields: { subject: "id" },
 			},
 			oidc,
-		] }, (message) => warnings.push(message));
+		] };
+		const result = resolveProviders(checked(stored));
 		expect(result.map((entry) => entry.id)).toEqual(["company"]);
-		expect(warnings).toHaveLength(1);
-		expect(warnings[0]).toContain("explicit-broken");
+		expect(repairsOf(stored).some((repair) => repair.path.startsWith("/providers/0"))).toBe(true);
 	});
 
 	it("reads a provider secret only through its scoped extension key", async () => {
@@ -108,12 +136,15 @@ describe("configuration", () => {
 		const provider = result.loginProviders![0];
 		const flow = { state: "state", callbackUrl: "https://sigrun.example.invalid/callback", data: { nonce: "nonce", codeVerifier: "verifier" } };
 		await expect(provider.complete(flow, { query: { code: "code", state: "state" } }, { abortSignal: undefined })).rejects.toThrow("missing its client secret");
-		expect(secretGet).toHaveBeenCalledExactlyOnceWith("company.clientSecret");
+		// The flow's secret read is the new nested key only; the factory's
+		// one-time migration may probe the legacy key, but the flow never
+		// reads it. The flow read is the LAST secrets.get call.
+		expect(secretGet.mock.calls.at(-1)).toEqual(["providers/company/clientSecret"]);
 	});
 
 	it("returns no providers when settings are absent or empty", async () => {
-		expect(parseProviders({})).toEqual([]);
-		expect(parseProviders({ providers: [] })).toEqual([]);
+		expect(resolveProviders(checked({}))).toEqual([]);
+		expect(resolveProviders(checked({ providers: [] }))).toEqual([]);
 		expect((await createOAuth(hostWith({}))).loginProviders).toEqual([]);
 	});
 });
