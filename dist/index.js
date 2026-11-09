@@ -21,9 +21,12 @@ export function providerSecretKey(id) {
 async function migrateClientSecrets(host, ids) {
     for (const id of ids) {
         const current = await host.stores.secrets.get(providerSecretKey(id));
-        // Absent/empty means migrate; a present new key always wins.
-        if (current !== undefined && current !== "")
+        // Absent/empty means migrate. A present new key wins, but the stale
+        // legacy key still gets removed so secrets.json does not keep it.
+        if (current !== undefined && current !== "") {
+            await host.stores.secrets.delete(legacySecretKey(id));
             continue;
+        }
         const legacy = await host.stores.secrets.get(legacySecretKey(id));
         if (legacy === undefined || legacy === "")
             continue;
@@ -38,6 +41,8 @@ export async function createOAuth(host) {
     });
     const settings = await declared.get();
     const configs = resolveProviders(settings);
+    // Migration is deliberately driven by the resolved providers: a dropped
+    // malformed/duplicate entry no longer has a live secret path to move.
     await migrateClientSecrets(host, configs.map((config) => config.id));
     const loginProviders = configs.map((config) => {
         const readSecret = () => host.stores.secrets.get(providerSecretKey(config.id));

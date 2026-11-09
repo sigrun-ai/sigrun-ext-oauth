@@ -8,11 +8,7 @@
  * from the flat `<id>.clientSecret` key to `providers/<id>/clientSecret`.
  */
 import { describe, expect, it, vi } from "vitest";
-import { assertDrawable } from "@sigrun/sigrun/settings-schema";
-// The checked-read helper is a core internal (not on the public
-// settings-schema export); resolve the linked core checkout by path.
-// @ts-expect-error — no type declarations for the deep path.
-import { checkStoredSettings } from "../node_modules/@sigrun/sigrun/dist/settings/schema/defaults.js";
+import { assertDrawable, checkStoredSettings } from "@sigrun/sigrun/settings-schema";
 import { OAUTH_SETTINGS_SCHEMA } from "../src/settings-schema.js";
 import { resolveProviders } from "../src/providers.js";
 import createOAuth from "../src/index.js";
@@ -55,6 +51,9 @@ function hostWith(
 				set: vi.fn(async (key: string, value: string) => {
 					secrets[key] = value;
 				}),
+				delete: vi.fn(async (key: string) => {
+					delete secrets[key];
+				}),
 			},
 			paths: { data: "", cache: "", state: "" },
 		},
@@ -71,10 +70,22 @@ describe("oauth settings schema", () => {
 		if (provider.kind !== "oidc") throw new Error("expected oidc");
 		// One assertion per defaulted key, values copied from src/config.ts
 		// before the parser was deleted.
-		expect(provider.kind).toBe("oidc"); // absent kind infers oidc
+		expect(provider.kind).toBe("oidc");
 		expect(provider.scopes).toBe("openid profile email");
 		expect(provider.usernameClaim).toBe("preferred_username");
 		expect(provider.groupsClaim).toBe("groups");
+	});
+
+	it("an old provider without kind resolves as oidc with the default scopes", () => {
+		const legacy = {
+			id: "legacy",
+			label: "Legacy",
+			issuer: "https://id.example.invalid",
+			clientId: "legacy-client",
+		};
+		const [provider] = resolveProviders(checked({ providers: [legacy] }));
+		expect(provider.kind).toBe("oidc");
+		expect(provider.scopes).toBe("openid profile email");
 	});
 
 	it("an old settings file still loads", async () => {
@@ -199,6 +210,6 @@ describe("oauth settings schema", () => {
 		};
 		await createOAuth(hostWith({ providers: [oidc] }, secrets));
 		expect(secrets["providers/company/clientSecret"]).toBe("current");
-		expect(secrets["company.clientSecret"]).toBe("stale"); // untouched
+		expect(secrets["company.clientSecret"]).toBeUndefined();
 	});
 });

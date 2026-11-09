@@ -9,8 +9,7 @@ import { OAUTH_SETTINGS_SCHEMA } from "../src/settings-schema.js";
 import { resolveProviders } from "../src/providers.js";
 import createOAuth from "../src/index.js";
 import type { SigrunHost } from "@sigrun/sigrun/extension";
-// @ts-expect-error — core internal, resolved through the file: dev link.
-import { checkStoredSettings } from "../node_modules/@sigrun/sigrun/dist/settings/schema/defaults.js";
+import { checkStoredSettings } from "@sigrun/sigrun/settings-schema";
 
 const oidc = {
 	id: "company",

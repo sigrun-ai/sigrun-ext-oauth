@@ -33,8 +33,12 @@ async function migrateClientSecrets(
 ): Promise<void> {
 	for (const id of ids) {
 		const current = await host.stores.secrets.get(providerSecretKey(id));
-		// Absent/empty means migrate; a present new key always wins.
-		if (current !== undefined && current !== "") continue;
+		// Absent/empty means migrate. A present new key wins, but the stale
+		// legacy key still gets removed so secrets.json does not keep it.
+		if (current !== undefined && current !== "") {
+			await host.stores.secrets.delete(legacySecretKey(id));
+			continue;
+		}
 		const legacy = await host.stores.secrets.get(legacySecretKey(id));
 		if (legacy === undefined || legacy === "") continue;
 		await host.stores.secrets.set(providerSecretKey(id), legacy);
@@ -44,11 +48,13 @@ async function migrateClientSecrets(
 
 /** Build login providers from this extension's declared settings and secrets. */
 export async function createOAuth(host: SigrunHost): Promise<SigrunExtensionResult> {
-	const declared = host.settings.declare<Record<string, unknown>, never>({
+	const declared = host.settings.declare<Record<string, unknown>, unknown>({
 		schema: OAUTH_SETTINGS_SCHEMA,
 	});
 	const settings = await declared.get();
 	const configs = resolveProviders(settings);
+	// Migration is deliberately driven by the resolved providers: a dropped
+	// malformed/duplicate entry no longer has a live secret path to move.
 	await migrateClientSecrets(host, configs.map((config) => config.id));
 	const loginProviders: LoginProviderContribution[] = configs.map((config) => {
 		const readSecret = () => host.stores.secrets.get(providerSecretKey(config.id));
