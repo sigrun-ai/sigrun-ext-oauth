@@ -1,4 +1,4 @@
-import type { FieldMap } from "./config.js";
+import type { FieldMap } from "./providers.js";
 
 export interface Preset {
 	authorizeUrl: string;

@@ -66,15 +66,22 @@ check(typeof manifest.homepage === "string", "package.json: homepage absent");
  * devDependency (file: in development, published version after release),
  * never a peer (see scripts/check-standalone.mjs). Peer entries are only
  * allowed for host modules the host links in at runtime, and this package
- * has none. */
-const HOST_MODULES = new Set();
+ * has none beyond typebox, which the host links in at runtime. */
+const HOST_MODULES = new Map([["typebox", "1.3.27"]]);
 const peers = manifest.peerDependencies ?? {};
 for (const [module, spec] of Object.entries(peers)) {
+	const expected = HOST_MODULES.get(module);
 	check(
-		HOST_MODULES.has(module),
+		expected !== undefined,
 		`package.json: peerDependencies carries non-host module "${module}" — the sigrun host contract is type-only; move it to devDependencies`,
 	);
-	check(spec === "*", `package.json: peerDependencies["${module}"] must be "*" (got ${JSON.stringify(spec)})`);
+	if (expected !== undefined) {
+		check(spec === expected, `package.json: peerDependencies["${module}"] must be "${expected}" (got ${JSON.stringify(spec)})`);
+		check(
+			manifest.devDependencies?.[module] === expected,
+			`package.json: devDependencies["${module}"] must mirror the host pin "${expected}"`,
+		);
+	}
 }
 
 /** No stray file: specifiers in a published dependencies field. */

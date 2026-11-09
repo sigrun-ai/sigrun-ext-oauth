@@ -1,12 +1,51 @@
-import { parseProviders } from "./config.js";
+import { OAUTH_SETTINGS_SCHEMA } from "./settings-schema.js";
+import { resolveProviders } from "./providers.js";
 import { createOidcProvider } from "./oidc.js";
 import { createOauth2Provider } from "./oauth2.js";
 export const EXTENSION_NAME = "oauth";
-/** Build login providers from this extension's scoped settings and secrets. */
+/** The pre-schema flat secret key for one provider's client secret. */
+export function legacySecretKey(id) {
+    return `${id}.clientSecret`;
+}
+/** The schema-declared nested secret key (settings rework §secrets). */
+export function providerSecretKey(id) {
+    return `providers/${id}/clientSecret`;
+}
+/**
+ * One-time secret migration (settings rework Task 10): a client secret
+ * stored under the old flat `<id>.clientSecret` key moves to the
+ * schema-declared `providers/<id>/clientSecret` key — copied, then the
+ * old key deleted. An entry whose new key already holds a value is left
+ * alone (the new spelling wins).
+ */
+async function migrateClientSecrets(host, ids) {
+    for (const id of ids) {
+        const current = await host.stores.secrets.get(providerSecretKey(id));
+        // Absent/empty means migrate. A present new key wins, but the stale
+        // legacy key still gets removed so secrets.json does not keep it.
+        if (current !== undefined && current !== "") {
+            await host.stores.secrets.delete(legacySecretKey(id));
+            continue;
+        }
+        const legacy = await host.stores.secrets.get(legacySecretKey(id));
+        if (legacy === undefined || legacy === "")
+            continue;
+        await host.stores.secrets.set(providerSecretKey(id), legacy);
+        await host.stores.secrets.delete(legacySecretKey(id));
+    }
+}
+/** Build login providers from this extension's declared settings and secrets. */
 export async function createOAuth(host) {
-    const settings = await host.stores.settings.get();
-    const loginProviders = parseProviders(settings).map((config) => {
-        const readSecret = () => host.stores.secrets.get(`${config.id}.clientSecret`);
+    const declared = host.settings.declare({
+        schema: OAUTH_SETTINGS_SCHEMA,
+    });
+    const settings = await declared.get();
+    const configs = resolveProviders(settings);
+    // Migration is deliberately driven by the resolved providers: a dropped
+    // malformed/duplicate entry no longer has a live secret path to move.
+    await migrateClientSecrets(host, configs.map((config) => config.id));
+    const loginProviders = configs.map((config) => {
+        const readSecret = () => host.stores.secrets.get(providerSecretKey(config.id));
         return config.kind === "oidc"
             ? createOidcProvider(config, readSecret)
             : createOauth2Provider(config, readSecret);
@@ -14,7 +53,8 @@ export async function createOAuth(host) {
     return { name: EXTENSION_NAME, loginProviders };
 }
 export default createOAuth;
-export { parseProviders, parseProvider } from "./config.js";
+export { resolveProviders, resolveProvider } from "./providers.js";
+export { OAUTH_SETTINGS_SCHEMA } from "./settings-schema.js";
 export { createOidcProvider } from "./oidc.js";
 export { createOauth2Provider } from "./oauth2.js";
 export { githubPreset, discordPreset } from "./presets.js";

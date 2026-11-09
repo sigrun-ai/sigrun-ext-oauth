@@ -1,6 +1,6 @@
 import * as oauth from "oauth4webapi";
 import type { HandlerContext, LoginFlow, LoginProviderContribution, LoginResult } from "@sigrun/sigrun/extension";
-import type { OidcConfig } from "./config.js";
+import type { OidcConfig } from "./providers.js";
 export type Fetch = typeof fetch;
 export type SecretReader = () => Promise<string | undefined>;
 export declare function discover(issuer: string, fetchImpl: Fetch, ctx: HandlerContext): Promise<oauth.AuthorizationServer>;

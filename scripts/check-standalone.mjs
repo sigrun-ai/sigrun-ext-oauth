@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 /**
  * Standalone-install check (release Task 1.1): this package must install
- * standalone with ONLY its runtime dependency (oauth4webapi). The sigrun
+ * standalone with its runtime dependency (oauth4webapi) and the host
+ * module peer (typebox). The sigrun
  * host contract is type-only — `import type { ... } from
  * "@sigrun/sigrun/extension"` — so the published tarball must not drag
  * the host package into a consumer's node_modules.
