@@ -1,6 +1,6 @@
 {
 	"name": "@sigrun/oauth",
-	"version": "0.1.3",
+	"version": "0.2.0",
 	"description": "OIDC and OAuth 2 login providers for sigrun",
 	"type": "module",
 	"engines": {
